@@ -43596,290 +43596,226 @@ const vocabularyData = [
 
 ]
 
-
-    // アプリ状態
-    let activeQuizList = [];
+    // アプリケーションの状態管理変数
+    let currentQuizList = [];
     let currentIndex = 0;
     let score = 0;
-    let isAnswered = false;
+    let selectedCount = 10;
     let isReviewMode = false;
-    let selectedQuestionCount = 10; // デフォルト10問
+    let wrongWordIds = JSON.parse(localStorage.getItem('toeic_wrong_words') || '[]');
+    let highScore = parseInt(localStorage.getItem('toeic_high_score') || '0', 10);
 
-    const STORAGE_KEY_REVIEW = "toeic_quiz_review_list";
-    const STORAGE_KEY_SCORE = "toeic_quiz_high_score";
-
-    window.addEventListener("DOMContentLoaded", () => {
-      loadHighScore();
-      renderCountSelectors();
-      showHomeScreen();
+    // 初期化処理
+    document.addEventListener('DOMContentLoaded', () => {
+      updateHomeScreen();
     });
 
-    // 配列のシャッフル
-    function shuffleArray(array) {
-      const arr = [...array];
-      for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
-      }
-      return arr;
-    }
-
-    // 10刻みの出題数選択ボタンの動的生成
-    function renderCountSelectors() {
-      const container = document.getElementById("count-selector-container");
-      container.innerHTML = "";
-
-      const options = [10, 20, 30, 40, 50, "ALL"];
-
-      options.forEach(opt => {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        const isSelected = selectedQuestionCount === opt;
-        
-        btn.className = `py-2 rounded-lg text-xs font-bold border transition-all ${
-          isSelected
-            ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
-            : "bg-white text-slate-700 border-slate-200 hover:border-indigo-300"
+    function updateHomeScreen() {
+      document.getElementById('high-score-val').innerText = highScore;
+      document.getElementById('home-review-count').innerText = wrongWordIds.length;
+      
+      const countContainer = document.getElementById('count-selector-container');
+      countContainer.innerHTML = '';
+      const counts = [10, 20, 30, 40, 50, 'ALL'];
+      
+      counts.forEach(cnt => {
+        const btn = document.createElement('button');
+        const isSelected = (cnt === selectedCount) || (cnt === 'ALL' && selectedCount === vocabularyData.length);
+        btn.className = `py-2 rounded-lg text-xs font-bold transition border ${
+          isSelected 
+            ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' 
+            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
         }`;
-        btn.textContent = opt === "ALL" ? "全問" : `${opt}問`;
+        btn.innerText = cnt;
         btn.onclick = () => {
-          selectedQuestionCount = opt;
-          renderCountSelectors();
+          selectedCount = (cnt === 'ALL') ? vocabularyData.length : cnt;
+          updateHomeScreen();
         };
-        container.appendChild(btn);
+        countContainer.appendChild(btn);
       });
     }
 
-    // ホーム画面を表示
     function showHomeScreen() {
-      updateReviewCountDisplay();
-      document.getElementById("home-screen").classList.remove("hidden");
-      document.getElementById("quiz-screen").classList.add("hidden");
-      document.getElementById("summary-screen").classList.add("hidden");
+      document.getElementById('home-screen').classList.remove('hidden');
+      document.getElementById('quiz-screen').classList.add('hidden');
+      document.getElementById('summary-screen').classList.add('hidden');
+      updateHomeScreen();
     }
 
-    // 設定を選択してクイズ開始
-    function startQuizWithConfig(reviewModeSelected) {
-      isReviewMode = reviewModeSelected;
+    function startQuizWithConfig(reviewMode) {
+      isReviewMode = reviewMode;
+      let pool = [];
+
+      if (isReviewMode) {
+        if (wrongWordIds.length === 0) {
+          alert('復習する単語がありません。');
+          return;
+        }
+        pool = vocabularyData.filter(item => wrongWordIds.includes(item.id));
+      } else {
+        pool = [...vocabularyData];
+      }
+
+      // ランダムシャッフル
+      pool.sort(() => Math.random() - 0.5);
+
+      // 出題数の決定
+      const targetCount = (typeof selectedCount === 'number') ? selectedCount : pool.length;
+      currentQuizList = pool.slice(0, targetCount);
+
       currentIndex = 0;
       score = 0;
 
-      const reviewIds = getReviewList();
+      document.getElementById('home-screen').classList.add('hidden');
+      document.getElementById('summary-screen').classList.add('hidden');
+      document.getElementById('quiz-screen').classList.remove('hidden');
 
-      if (isReviewMode) {
-        if (reviewIds.length === 0) {
-          alert("現在、復習用の間違えた問題はありません。");
-          return;
-        }
-        let reviewWords = vocabularyData.filter(item => reviewIds.includes(item.id));
-        if (selectedQuestionCount !== "ALL") {
-          reviewWords = shuffleArray(reviewWords).slice(0, selectedQuestionCount);
-        }
-        activeQuizList = reviewWords;
-        document.getElementById("quiz-mode-badge").textContent = "復習モード";
-        document.getElementById("quiz-mode-badge").className = "px-2 py-0.5 bg-amber-50 text-amber-700 rounded border border-amber-200 font-bold";
-      } else {
-        document.getElementById("quiz-mode-badge").textContent = "通常モード";
-        document.getElementById("quiz-mode-badge").className = "px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded border border-indigo-200 font-bold";
+      document.getElementById('quiz-mode-badge').innerText = isReviewMode ? '復習モード' : '通常モード';
 
-        if (selectedQuestionCount === "ALL") {
-          activeQuizList = [...vocabularyData];
-        } else {
-          const count = parseInt(selectedQuestionCount, 10);
-          activeQuizList = shuffleArray(vocabularyData).slice(0, Math.min(count, vocabularyData.length));
-        }
-      }
-
-      document.getElementById("home-screen").classList.add("hidden");
-      document.getElementById("quiz-screen").classList.remove("hidden");
-      document.getElementById("summary-screen").classList.add("hidden");
-
-      showQuestion();
+      renderQuestion();
     }
 
-    // 問題表示
-    function showQuestion() {
-      isAnswered = false;
-      const currentWord = activeQuizList[currentIndex];
+    function renderQuestion() {
+      const current = currentQuizList[currentIndex];
+      
+      // 進捗表示
+      document.getElementById('progress-text').innerText = `進捗: ${currentIndex + 1} / ${currentQuizList.length}`;
+      const progressPercent = ((currentIndex) / currentQuizList.length) * 100;
+      document.getElementById('progress-bar').style.width = `${progressPercent}%`;
 
-      document.getElementById("target-word").textContent = currentWord.word;
-      document.getElementById("word-pos").textContent = currentWord.pos;
-      document.getElementById("question-number").textContent = `Question ${currentIndex + 1}`;
+      document.getElementById('question-number').innerText = `Question ${currentIndex + 1}`;
+      document.getElementById('word-pos').innerText = current.pos;
+      document.getElementById('target-word').innerText = current.word;
 
-      const total = activeQuizList.length;
-      const progressPercent = Math.round((currentIndex / total) * 100);
-      document.getElementById("progress-bar").style.width = `${progressPercent}%`;
-      document.getElementById("progress-text").textContent = `進捗: ${currentIndex} / ${total}`;
+      // 選択肢作成 (正解1 + 誤答3)
+      const options = [current.meaning, ...current.distractors];
+      options.sort(() => Math.random() - 0.5);
 
-      document.getElementById("explanation-card").classList.add("hidden");
-      document.getElementById("next-btn").classList.add("hidden");
-      document.getElementById("next-btn").classList.remove("flex");
+      const optionsContainer = document.getElementById('options-container');
+      optionsContainer.innerHTML = '';
 
-      const optionsContainer = document.getElementById("options-container");
-      optionsContainer.innerHTML = "";
-
-      const options = [
-        { text: currentWord.meaning, isCorrect: true },
-        ...currentWord.distractors.map(d => ({ text: d, isCorrect: false }))
-      ];
-
-      shuffleArray(options).forEach((option, idx) => {
-        const btn = document.createElement("button");
-        btn.className = "option-btn w-full text-left p-4 rounded-xl border-2 border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/50 transition-all font-semibold text-slate-800 flex items-center justify-between group";
+      options.forEach(optionText => {
+        const btn = document.createElement('button');
+        btn.className = 'w-full text-left p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 font-semibold text-slate-700 transition flex items-center justify-between group option-btn';
         btn.innerHTML = `
-          <div class="flex items-center space-x-3">
-            <span class="w-7 h-7 rounded-lg bg-slate-100 group-hover:bg-indigo-600 group-hover:text-white flex items-center justify-center text-xs font-bold transition-colors">${idx + 1}</span>
-            <span class="text-sm sm:text-base">${option.text}</span>
-          </div>
-          <i class="fa-solid fa-circle-check text-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity"></i>
+          <span>${optionText}</span>
+          <i class="fa-regular fa-circle text-slate-300 group-hover:text-indigo-500"></i>
         `;
-        btn.onclick = () => checkAnswer(option.isCorrect, btn);
+        btn.onclick = () => handleAnswer(optionText, current, btn);
         optionsContainer.appendChild(btn);
       });
+
+      // UI初期化
+      document.getElementById('explanation-card').classList.add('hidden');
+      document.getElementById('next-btn').classList.add('hidden');
     }
 
-    // 解答確認
-    function checkAnswer(isCorrect, selectedBtn) {
-      if (isAnswered) return;
-      isAnswered = true;
+    function handleAnswer(selectedOption, current, clickedBtn) {
+      // 選択肢無効化
+      const btns = document.querySelectorAll('.option-btn');
+      btns.forEach(b => b.disabled = true);
 
-      const currentWord = activeQuizList[currentIndex];
-      const optionBtns = document.querySelectorAll(".option-btn");
-
-      optionBtns.forEach(btn => {
-        btn.disabled = true;
-        btn.classList.remove("hover:border-indigo-400", "hover:bg-indigo-50/50");
-      });
+      const isCorrect = selectedOption === current.meaning;
 
       if (isCorrect) {
         score++;
-        selectedBtn.classList.add("border-emerald-500", "bg-emerald-50", "text-emerald-900");
-        showExplanation(true, currentWord);
-        removeFromReviewList(currentWord.id);
+        clickedBtn.classList.remove('bg-white', 'border-slate-200');
+        clickedBtn.classList.add('bg-emerald-50', 'border-emerald-500', 'text-emerald-900');
+        
+        // 復習リストから削除
+        wrongWordIds = wrongWordIds.filter(id => id !== current.id);
       } else {
-        selectedBtn.classList.add("border-rose-500", "bg-rose-50", "text-rose-900");
-        showExplanation(false, currentWord);
-        addToReviewList(currentWord.id);
+        clickedBtn.classList.remove('bg-white', 'border-slate-200');
+        clickedBtn.classList.add('bg-rose-50', 'border-rose-500', 'text-rose-900');
 
-        optionBtns.forEach(btn => {
-          if (btn.textContent.includes(currentWord.meaning)) {
-            btn.classList.add("border-emerald-500", "bg-emerald-50");
+        // 正解ボタンをハイライト
+        btns.forEach(b => {
+          if (b.innerText.trim() === current.meaning) {
+            b.classList.remove('bg-white', 'border-slate-200');
+            b.classList.add('bg-emerald-50', 'border-emerald-500', 'text-emerald-900');
           }
         });
+
+        // 復習リストに追加
+        if (!wrongWordIds.includes(current.id)) {
+          wrongWordIds.push(current.id);
+        }
       }
 
-      const nextBtn = document.getElementById("next-btn");
-      nextBtn.classList.remove("hidden");
-      nextBtn.classList.add("flex");
-    }
+      localStorage.setItem('toeic_wrong_words', JSON.stringify(wrongWordIds));
 
-    // 解説カード表示
-    function showExplanation(isCorrect, wordData) {
-      const card = document.getElementById("explanation-card");
-      const badge = document.getElementById("result-badge");
-      const title = document.getElementById("result-title");
-
-      card.classList.remove("hidden");
+      // 解説カードの描画
+      const expCard = document.getElementById('explanation-card');
+      const resBadge = document.getElementById('result-badge');
+      const resTitle = document.getElementById('result-title');
 
       if (isCorrect) {
-        card.className = "rounded-xl p-5 mb-6 border bg-emerald-50/60 border-emerald-200 transition-all duration-300";
-        badge.className = "inline-flex items-center justify-center w-8 h-8 rounded-full font-bold text-lg mr-3 bg-emerald-500 text-white";
-        badge.innerHTML = '<i class="fa-solid fa-check"></i>';
-        title.className = "text-lg font-bold text-emerald-900";
-        title.textContent = "正解です！";
+        expCard.className = 'rounded-xl p-5 mb-6 border bg-emerald-50/50 border-emerald-200 text-emerald-950';
+        resBadge.className = 'inline-flex items-center justify-center w-8 h-8 rounded-full font-bold text-lg mr-3 bg-emerald-100 text-emerald-600';
+        resBadge.innerHTML = '<i class="fa-solid fa-check"></i>';
+        resTitle.innerText = '正解です！';
+        resTitle.className = 'text-lg font-bold text-emerald-800';
       } else {
-        card.className = "rounded-xl p-5 mb-6 border bg-rose-50/60 border-rose-200 transition-all duration-300";
-        badge.className = "inline-flex items-center justify-center w-8 h-8 rounded-full font-bold text-lg mr-3 bg-rose-500 text-white";
-        badge.innerHTML = '<i class="fa-solid fa-xmark"></i>';
-        title.className = "text-lg font-bold text-rose-900";
-        title.textContent = "不正解です";
+        expCard.className = 'rounded-xl p-5 mb-6 border bg-rose-50/50 border-rose-200 text-rose-950';
+        resBadge.className = 'inline-flex items-center justify-center w-8 h-8 rounded-full font-bold text-lg mr-3 bg-rose-100 text-rose-600';
+        resBadge.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+        resTitle.innerText = '不正解です';
+        resTitle.className = 'text-lg font-bold text-rose-800';
       }
 
-      document.getElementById("correct-meaning").textContent = `${wordData.word} : ${wordData.meaning}`;
-      document.getElementById("example-en").textContent = wordData.exampleEn;
-      document.getElementById("example-ja").textContent = wordData.exampleJa;
-      document.getElementById("business-explanation").textContent = wordData.explanation;
+      document.getElementById('correct-meaning').innerText = `${current.word} : ${current.meaning}`;
+      document.getElementById('example-en').innerText = current.exampleEn;
+      document.getElementById('example-ja').innerText = current.exampleJa;
+      document.getElementById('business-explanation').innerText = current.explanation;
+
+      expCard.classList.remove('hidden');
+      document.getElementById('next-btn').classList.remove('hidden');
+      document.getElementById('next-btn').classList.add('flex');
     }
 
     function nextQuestion() {
       currentIndex++;
-      if (currentIndex < activeQuizList.length) {
-        showQuestion();
+      if (currentIndex < currentQuizList.length) {
+        renderQuestion();
       } else {
-        showSummary();
+        showSummaryScreen();
       }
     }
 
-    function showSummary() {
-      document.getElementById("quiz-screen").classList.add("hidden");
-      document.getElementById("summary-screen").classList.remove("hidden");
+    function showSummaryScreen() {
+      document.getElementById('quiz-screen').classList.add('hidden');
+      document.getElementById('summary-screen').classList.remove('hidden');
 
-      const total = activeQuizList.length;
+      const total = currentQuizList.length;
       const accuracy = Math.round((score / total) * 100);
 
-      document.getElementById("final-score").textContent = `${score} / ${total}`;
-      document.getElementById("final-accuracy").textContent = `${accuracy}%`;
+      document.getElementById('final-score').innerText = `${score} / ${total}`;
+      document.getElementById('final-accuracy').innerText = `${accuracy}%`;
 
-      if (!isReviewMode) {
-        saveHighScore(score);
+      // ハイスコア更新
+      if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('toeic_high_score', highScore.toString());
       }
 
-      const reviewCount = getReviewList().length;
-      const reviewAlert = document.getElementById("review-summary-alert");
-
-      if (reviewCount > 0) {
-        reviewAlert.classList.remove("hidden");
-        document.getElementById("review-count-msg").textContent = `現在 ${reviewCount} 問の復習単語が保存されています。`;
+      const wrongCount = total - score;
+      const alertBox = document.getElementById('review-summary-alert');
+      if (wrongCount > 0) {
+        alertBox.classList.remove('hidden');
+        document.getElementById('review-count-msg').innerText = `今回間違えた ${wrongCount} 問が復習リストに登録・更新されました。`;
       } else {
-        reviewAlert.classList.add("hidden");
-      }
-    }
-
-    // ローカルストレージ管理
-    function getReviewList() {
-      const saved = localStorage.getItem(STORAGE_KEY_REVIEW);
-      return saved ? JSON.parse(saved) : [];
-    }
-
-    function addToReviewList(id) {
-      const list = getReviewList();
-      if (!list.includes(id)) {
-        list.push(id);
-        localStorage.setItem(STORAGE_KEY_REVIEW, JSON.stringify(list));
-      }
-    }
-
-    function removeFromReviewList(id) {
-      let list = getReviewList();
-      list = list.filter(item => item !== id);
-      localStorage.setItem(STORAGE_KEY_REVIEW, JSON.stringify(list));
-    }
-
-    function updateReviewCountDisplay() {
-      const count = getReviewList().length;
-      document.getElementById("home-review-count").textContent = count;
-    }
-
-    function loadHighScore() {
-      const saved = localStorage.getItem(STORAGE_KEY_SCORE) || 0;
-      document.getElementById("high-score-val").textContent = saved;
-    }
-
-    function saveHighScore(currentScore) {
-      const saved = parseInt(localStorage.getItem(STORAGE_KEY_SCORE) || "0", 10);
-      if (currentScore > saved) {
-        localStorage.setItem(STORAGE_KEY_SCORE, currentScore);
-        document.getElementById("high-score-val").textContent = currentScore;
+        alertBox.classList.add('hidden');
       }
     }
 
     function resetData() {
-      if (confirm("最高スコアおよび復習リストの履歴をすべて消去しますか？")) {
-        localStorage.removeItem(STORAGE_KEY_REVIEW);
-        localStorage.removeItem(STORAGE_KEY_SCORE);
-        document.getElementById("high-score-val").textContent = 0;
-        updateReviewCountDisplay();
-        alert("履歴をリセットしました。");
+      if (confirm('学習履歴（最高スコアおよび復習リスト）を全消去しますか？')) {
+        localStorage.removeItem('toeic_wrong_words');
+        localStorage.removeItem('toeic_high_score');
+        wrongWordIds = [];
+        highScore = 0;
+        updateHomeScreen();
+        alert('データをリセットしました。');
       }
     }
   </script>
