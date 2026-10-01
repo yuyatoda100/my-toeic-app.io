@@ -3,6 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#4f46e5">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="description" content="TOEIC単語を学ぶための4択クイズアプリ">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <title>TOEIC単語学習 4択クイズアプリ</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -14,20 +20,6 @@
       font-family: 'Inter', 'Noto Sans JP', sans-serif;
     }
   </style>
-    <!-- PWA Meta Tags -->
-  <link rel="manifest" href="./manifest.json">
-  <meta name="theme-color" content="#4f46e5">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="TOEIC Quiz">
-  
-  <!-- Service Worker Registration -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./service-worker.js').catch(err => console.error('SW registration failed:', err));
-    }
-  </script>
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 flex flex-col justify-between py-6 px-4 sm:px-6">
 
@@ -205,6 +197,15 @@
   <footer class="max-w-2xl mx-auto w-full mt-4 text-center text-xs text-slate-400">
     TOEIC Vocabulary Quiz App
   </footer>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch((error) => {
+          console.warn('Service worker registration failed:', error);
+        });
+      });
+    }
+  </script>
   <script>
     // TOEIC 頻出単語マスターデータ（ビジネス文脈の例文・解説付き）
 const vocabularyData = [
