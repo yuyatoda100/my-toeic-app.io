@@ -18,6 +18,19 @@
     body {
       font-family: 'Inter', 'Noto Sans JP', sans-serif;
     }
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#4A90E2">
+  <meta name="description" content="NEW HORIZON3の英単語を楽しく学べるタイピングアプリです">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" type="image/png" href="./icon-192.png">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js')
+        .then(reg => console.log('Service Worker 登録成功'))
+        .catch(err => console.log('Service Worker 登録失敗', err));
+    }
+  </script>
   </style>
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 flex flex-col justify-between py-6 px-4 sm:px-6">
