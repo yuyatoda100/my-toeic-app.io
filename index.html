@@ -1,8 +1,3 @@
-指定されたWebサイト（`https://www.eigo-duke.com/bunpo/TOEIC.html`）をノートブックのソースとして追加し、Content Studioで「TOEIC単語学習 4択クイズ」の作成を開始しました。
-
-以下に、ご要望の仕様をすべて満たした **1ファイル完結型（HTML/CSS/JavaScript）の「TOEIC単語学習4択クイズアプリ」** の完全なコードを出力します。ローカルで `index.html` として保存し、Webブラウザで開くだけでそのまま動作します。
-
-```html
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -18,6 +13,7 @@
     body {
       font-family: 'Inter', 'Noto Sans JP', sans-serif;
     }
+  </style>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#4A90E2">
   <meta name="description" content="NEW HORIZON3の英単語を楽しく学べるタイピングアプリです">
@@ -31,14 +27,13 @@
         .catch(err => console.log('Service Worker 登録失敗', err));
     }
   </script>
-  </style>
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 flex flex-col justify-between py-6 px-4 sm:px-6">
 
-  <!-- ヘッダーエリア -->
+  <!-- アプリヘッダー -->
   <header class="max-w-2xl mx-auto w-full mb-6">
-    <div class="flex items-center justify-between mb-3">
-      <div class="flex items-center space-x-2">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center space-x-2 cursor-pointer" onclick="showHomeScreen()">
         <span class="bg-indigo-600 text-white text-xs font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">TOEIC App</span>
         <h1 class="text-xl font-extrabold text-slate-900 tracking-tight">単語学習4択クイズ</h1>
       </div>
@@ -46,23 +41,79 @@
         <div><i class="fa-solid fa-trophy text-amber-500 mr-1"></i>最高スコア: <span id="high-score-val">0</span></div>
       </div>
     </div>
-
-    <!-- プログレスバー -->
-    <div class="bg-slate-200 rounded-full h-3.5 w-full overflow-hidden p-0.5 shadow-inner">
-      <div id="progress-bar" class="bg-gradient-to-r from-indigo-500 to-purple-600 h-full rounded-full transition-all duration-300 w-0"></div>
-    </div>
-    <div class="flex justify-between items-center text-xs font-medium text-slate-500 mt-1.5">
-      <span id="quiz-mode-badge" class="px-2 py-0.5 bg-indigo-50 text-indigo-700 font-semibold rounded border border-indigo-200">通常モード</span>
-      <span id="progress-text">進捗: 0 / 0 (0%)</span>
-    </div>
   </header>
 
   <!-- メインコンテンツカード -->
   <main class="max-w-2xl mx-auto w-full bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden my-auto">
-    
-    <!-- クイズ画面 -->
-    <div id="quiz-screen" class="p-6 sm:p-8">
-      
+
+    <!-- 1. ホーム画面 (モード・出題数選択) -->
+    <div id="home-screen" class="p-6 sm:p-8 space-y-6">
+      <div class="text-center space-y-2">
+        <div class="inline-flex items-center justify-center w-12 h-12 bg-indigo-100 text-indigo-600 rounded-2xl mb-1 text-xl">
+          <i class="fa-solid fa-book-bookmark"></i>
+        </div>
+        <h2 class="text-2xl font-black text-slate-900">クイズ設定</h2>
+        <p class="text-slate-500 text-xs sm:text-sm">学習モードと問題数を選択してスタートしてください。</p>
+      </div>
+
+      <!-- 出題数選択（10刻み） -->
+      <div class="bg-slate-50 p-4 sm:p-5 rounded-xl border border-slate-200/80 space-y-3">
+        <label class="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+          <i class="fa-solid fa-sliders text-indigo-600"></i>
+          <span>出題数を指定（10刻み）</span>
+        </label>
+        <div class="grid grid-cols-3 sm:grid-cols-6 gap-2" id="count-selector-container">
+          <!-- JSで10, 20, 30, 40, 50, ALL ボタンを動的生成 -->
+        </div>
+      </div>
+
+      <!-- モード選択ボタン -->
+      <div class="space-y-3 pt-2">
+        <button onclick="startQuizWithConfig(false)" class="w-full py-4 px-5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold rounded-xl shadow-lg shadow-indigo-100 transition flex items-center justify-between group">
+          <div class="flex items-center space-x-3">
+            <i class="fa-solid fa-play text-lg"></i>
+            <div class="text-left">
+              <div class="text-base leading-tight">通常モードでスタート</div>
+              <div class="text-xs text-indigo-200 font-normal mt-0.5">ランダム抽出された問題に挑戦</div>
+            </div>
+          </div>
+          <i class="fa-solid fa-chevron-right group-hover:translate-x-1 transition-transform"></i>
+        </button>
+
+        <button id="home-review-btn" onclick="startQuizWithConfig(true)" class="w-full py-4 px-5 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-bold rounded-xl shadow-lg shadow-amber-100 transition flex items-center justify-between group">
+          <div class="flex items-center space-x-3">
+            <i class="fa-solid fa-bookmark text-lg"></i>
+            <div class="text-left">
+              <div class="text-base leading-tight">復習モードでスタート</div>
+              <div class="text-xs text-amber-100 font-normal mt-0.5">間違えた問題のみを優先出題 (<span id="home-review-count">0</span>問)</div>
+            </div>
+          </div>
+          <i class="fa-solid fa-chevron-right group-hover:translate-x-1 transition-transform"></i>
+        </button>
+      </div>
+
+      <!-- 設定・リセットエリア -->
+      <div class="pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+        <span>学習データの管理</span>
+        <button onclick="resetData()" class="text-rose-600 hover:text-rose-700 font-semibold flex items-center gap-1 hover:underline">
+          <i class="fa-solid fa-trash-can"></i> 履歴リセット
+        </button>
+      </div>
+    </div>
+
+    <!-- 2. クイズ画面 -->
+    <div id="quiz-screen" class="hidden p-6 sm:p-8">
+      <!-- プログレスバー（クイズ画面内） -->
+      <div class="mb-6">
+        <div class="flex justify-between items-center text-xs font-semibold text-slate-500 mb-1.5">
+          <span id="quiz-mode-badge" class="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded border border-indigo-200">通常モード</span>
+          <span id="progress-text">進捗: 0 / 0</span>
+        </div>
+        <div class="bg-slate-200 rounded-full h-2.5 w-full overflow-hidden">
+          <div id="progress-bar" class="bg-indigo-600 h-full rounded-full transition-all duration-300 w-0"></div>
+        </div>
+      </div>
+
       <!-- 単語表示ヘッダー -->
       <div class="mb-6 text-center border-b border-slate-100 pb-6">
         <div class="flex justify-center items-center gap-2 mb-2">
@@ -73,11 +124,9 @@
       </div>
 
       <!-- 選択肢ボタンエリア -->
-      <div id="options-container" class="grid grid-cols-1 gap-3.5 mb-6">
-        <!-- JSで動的に生成 -->
-      </div>
+      <div id="options-container" class="grid grid-cols-1 gap-3.5 mb-6"></div>
 
-      <!-- 解答後の解説＆例文表示エリア（初期状態は非表示） -->
+      <!-- 解答後の解説＆例文表示エリア -->
       <div id="explanation-card" class="hidden rounded-xl p-5 mb-6 border transition-all duration-300">
         <div class="flex items-center mb-3">
           <span id="result-badge" class="inline-flex items-center justify-center w-8 h-8 rounded-full font-bold text-lg mr-3"></span>
@@ -104,16 +153,18 @@
       </div>
 
       <!-- 次へボタン -->
-      <div class="flex justify-end">
-        <button id="next-btn" onclick="nextQuestion()" class="hidden w-full sm:w-auto px-6 py-3 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 transition duration-200 items-center justify-center space-x-2">
+      <div class="flex justify-between items-center">
+        <button onclick="showHomeScreen()" class="text-xs text-slate-400 hover:text-slate-600 font-semibold flex items-center gap-1">
+          <i class="fa-solid fa-house"></i> ホームへ戻る
+        </button>
+        <button id="next-btn" onclick="nextQuestion()" class="hidden px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 transition items-center space-x-2">
           <span>次の問題へ</span>
           <i class="fa-solid fa-arrow-right text-xs"></i>
         </button>
       </div>
-
     </div>
 
-    <!-- 結果サマリー画面（初期状態は非表示） -->
+    <!-- 3. 結果サマリー画面 -->
     <div id="summary-screen" class="hidden p-8 text-center">
       <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">
         <i class="fa-solid fa-flag-checkered"></i>
@@ -121,7 +172,6 @@
       <h2 class="text-2xl font-black text-slate-900 mb-1">クイズ終了！</h2>
       <p class="text-slate-500 text-sm mb-6">お疲れ様でした。今回の学習結果です。</p>
 
-      <!-- スコア表示 -->
       <div class="grid grid-cols-2 gap-4 mb-6">
         <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
           <span class="text-xs text-slate-500 font-semibold uppercase block mb-1">スコア</span>
@@ -133,49 +183,27 @@
         </div>
       </div>
 
-      <!-- 復習通知アラート -->
       <div id="review-summary-alert" class="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-4 text-xs font-medium mb-6 text-left flex items-start space-x-3">
         <i class="fa-solid fa-triangle-exclamation text-amber-500 text-base mt-0.5"></i>
         <div>
           <span class="font-bold block mb-0.5 text-sm">間違えた単語があります</span>
-          <p id="review-count-msg">復習リストに自動登録されました。復習モードで集中的に再挑戦できます。</p>
+          <p id="review-count-msg">復習リストに自動登録されました。</p>
         </div>
       </div>
 
-      <!-- アクションボタン -->
       <div class="space-y-3">
-        <button id="start-review-btn" onclick="startReviewMode()" class="w-full py-3.5 px-4 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-bold rounded-xl shadow-md transition flex items-center justify-center space-x-2">
-          <i class="fa-solid fa-rotate-right"></i>
-          <span>間違えた問題だけを復習する (<span id="review-badge-count">0</span>問)</span>
-        </button>
-        <button onclick="restartNormalQuiz()" class="w-full py-3.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md transition flex items-center justify-center space-x-2">
-          <i class="fa-solid fa-arrows-rotate"></i>
-          <span>通常モードで最初から解く</span>
+        <button onclick="showHomeScreen()" class="w-full py-3.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md transition flex items-center justify-center space-x-2">
+          <i class="fa-solid fa-house"></i>
+          <span>ホーム画面へ戻る</span>
         </button>
       </div>
     </div>
 
   </main>
 
-  <!-- フッターナビゲーション -->
-  <footer class="max-w-2xl mx-auto w-full mt-6">
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200/80 p-2.5 flex items-center justify-around text-xs font-semibold text-slate-600">
-      <button onclick="restartNormalQuiz()" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition">
-        <i class="fa-solid fa-list-check text-indigo-600"></i>
-        <span>通常モード</span>
-      </button>
-      <button onclick="startReviewMode()" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition">
-        <i class="fa-solid fa-bookmark text-amber-500"></i>
-        <span>復習モード (<span id="nav-review-count">0</span>)</span>
-      </button>
-      <button onclick="resetData()" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg hover:bg-rose-50 text-rose-600 transition">
-        <i class="fa-solid fa-trash-can"></i>
-        <span>履歴リセット</span>
-      </button>
-    </div>
+  <footer class="max-w-2xl mx-auto w-full mt-4 text-center text-xs text-slate-400">
+    TOEIC Vocabulary Quiz App
   </footer>
-
-  <!-- アプリケーションロジック (JavaScript) -->
   <script>
     // TOEIC 頻出単語マスターデータ（ビジネス文脈の例文・解説付き）
 const vocabularyData = [
@@ -43568,45 +43596,26 @@ const vocabularyData = [
 
 ]
 
-    // アプリケーション状態変数
-    let currentQuizList = [];
+
+    // アプリ状態
+    let activeQuizList = [];
     let currentIndex = 0;
     let score = 0;
     let isAnswered = false;
     let isReviewMode = false;
-    let wrongWordIds = JSON.parse(localStorage.getItem("toeic_app_wrong_ids")) || [];
-    let highScore = parseInt(localStorage.getItem("toeic_app_high_score")) || 0;
+    let selectedQuestionCount = 10; // デフォルト10問
 
-    // DOM要素参照
-    const targetWordEl = document.getElementById("target-word");
-    const wordPosEl = document.getElementById("word-pos");
-    const questionNumberEl = document.getElementById("question-number");
-    const optionsContainerEl = document.getElementById("options-container");
-    const explanationCardEl = document.getElementById("explanation-card");
-    const resultBadgeEl = document.getElementById("result-badge");
-    const resultTitleEl = document.getElementById("result-title");
-    const correctMeaningEl = document.getElementById("correct-meaning");
-    const exampleEnEl = document.getElementById("example-en");
-    const exampleJaEl = document.getElementById("example-ja");
-    const businessExplanationEl = document.getElementById("business-explanation");
-    const nextBtnEl = document.getElementById("next-btn");
-    const progressBarEl = document.getElementById("progress-bar");
-    const progressTextEl = document.getElementById("progress-text");
-    const highScoreValEl = document.getElementById("high-score-val");
-    const quizModeBadgeEl = document.getElementById("quiz-mode-badge");
-    const quizScreenEl = document.getElementById("quiz-screen");
-    const summaryScreenEl = document.getElementById("summary-screen");
-    const navReviewCountEl = document.getElementById("nav-review-count");
+    const STORAGE_KEY_REVIEW = "toeic_quiz_review_list";
+    const STORAGE_KEY_SCORE = "toeic_quiz_high_score";
 
-    // 初期化処理
     window.addEventListener("DOMContentLoaded", () => {
-      highScoreValEl.textContent = highScore;
-      updateReviewCountUI();
-      restartNormalQuiz();
+      loadHighScore();
+      renderCountSelectors();
+      showHomeScreen();
     });
 
-    // 配列シャッフル関数 (Fisher-Yates)
-    function shuffle(array) {
+    // 配列のシャッフル
+    function shuffleArray(array) {
       const arr = [...array];
       for (let i = arr.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -43615,220 +43624,264 @@ const vocabularyData = [
       return arr;
     }
 
-    // 通常クイズモードの開始
-    function restartNormalQuiz() {
-      isReviewMode = false;
-      currentQuizList = shuffle(vocabularyData);
-      currentIndex = 0;
-      score = 0;
-      quizModeBadgeEl.textContent = "通常モード";
-      quizModeBadgeEl.className = "px-2 py-0.5 bg-indigo-50 text-indigo-700 font-semibold rounded border border-indigo-200";
-      
-      summaryScreenEl.classList.add("hidden");
-      quizScreenEl.classList.remove("hidden");
-      
-      loadQuestion();
-    }
+    // 10刻みの出題数選択ボタンの動的生成
+    function renderCountSelectors() {
+      const container = document.getElementById("count-selector-container");
+      container.innerHTML = "";
 
-    // 復習モードの開始
-    function startReviewMode() {
-      if (wrongWordIds.length === 0) {
-        alert("復習リストに登録されている単語はありません！全問正解中です。");
-        return;
-      }
-      isReviewMode = true;
-      currentQuizList = shuffle(vocabularyData.filter(item => wrongWordIds.includes(item.id)));
-      currentIndex = 0;
-      score = 0;
-      quizModeBadgeEl.textContent = "復習モード";
-      quizModeBadgeEl.className = "px-2 py-0.5 bg-amber-50 text-amber-800 font-semibold rounded border border-amber-300";
+      const options = [10, 20, 30, 40, 50, "ALL"];
 
-      summaryScreenEl.classList.add("hidden");
-      quizScreenEl.classList.remove("hidden");
-
-      loadQuestion();
-    }
-
-    // 問題の読み込み
-    function loadQuestion() {
-      isAnswered = false;
-      nextBtnEl.classList.add("hidden");
-      explanationCardEl.classList.add("hidden");
-
-      const item = currentQuizList[currentIndex];
-
-      // 単語表示設定
-      targetWordEl.textContent = item.word;
-      wordPosEl.textContent = item.pos;
-      questionNumberEl.textContent = `Question ${currentIndex + 1} / ${currentQuizList.length}`;
-
-      // プログレスバー更新
-      const progressPercent = Math.round((currentIndex / currentQuizList.length) * 100);
-      progressBarEl.style.width = `${progressPercent}%`;
-      progressTextEl.textContent = `進捗: ${currentIndex} / ${currentQuizList.length} (${progressPercent}%)`;
-
-      // 正解1つ + ダミー3つの4択選択肢を生成してシャッフル
-      const choices = shuffle([
-        { text: item.meaning, isCorrect: true },
-        ...item.distractors.map(d => ({ text: d, isCorrect: false }))
-      ]);
-
-      optionsContainerEl.innerHTML = "";
-      choices.forEach((choice, index) => {
+      options.forEach(opt => {
         const btn = document.createElement("button");
-        btn.className = "option-btn w-full text-left p-4 rounded-xl border-2 border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/50 transition font-medium text-slate-800 flex items-center justify-between group";
-        btn.innerHTML = `
-          <div class="flex items-center space-x-3">
-            <span class="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 group-hover:bg-indigo-600 group-hover:text-white flex items-center justify-center text-xs font-bold transition">${index + 1}</span>
-            <span class="text-sm sm:text-base">${choice.text}</span>
-          </div>
-          <i class="fa-solid fa-chevron-right text-slate-300 group-hover:text-indigo-500 text-xs transition"></i>
-        `;
-        btn.onclick = () => handleAnswer(choice.isCorrect, btn, item);
-        optionsContainerEl.appendChild(btn);
+        btn.type = "button";
+        const isSelected = selectedQuestionCount === opt;
+        
+        btn.className = `py-2 rounded-lg text-xs font-bold border transition-all ${
+          isSelected
+            ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+            : "bg-white text-slate-700 border-slate-200 hover:border-indigo-300"
+        }`;
+        btn.textContent = opt === "ALL" ? "全問" : `${opt}問`;
+        btn.onclick = () => {
+          selectedQuestionCount = opt;
+          renderCountSelectors();
+        };
+        container.appendChild(btn);
       });
     }
 
-    // 回答処理（即時判定 & 結果表示）
-    function handleAnswer(isCorrect, selectedBtn, item) {
+    // ホーム画面を表示
+    function showHomeScreen() {
+      updateReviewCountDisplay();
+      document.getElementById("home-screen").classList.remove("hidden");
+      document.getElementById("quiz-screen").classList.add("hidden");
+      document.getElementById("summary-screen").classList.add("hidden");
+    }
+
+    // 設定を選択してクイズ開始
+    function startQuizWithConfig(reviewModeSelected) {
+      isReviewMode = reviewModeSelected;
+      currentIndex = 0;
+      score = 0;
+
+      const reviewIds = getReviewList();
+
+      if (isReviewMode) {
+        if (reviewIds.length === 0) {
+          alert("現在、復習用の間違えた問題はありません。");
+          return;
+        }
+        let reviewWords = vocabularyData.filter(item => reviewIds.includes(item.id));
+        if (selectedQuestionCount !== "ALL") {
+          reviewWords = shuffleArray(reviewWords).slice(0, selectedQuestionCount);
+        }
+        activeQuizList = reviewWords;
+        document.getElementById("quiz-mode-badge").textContent = "復習モード";
+        document.getElementById("quiz-mode-badge").className = "px-2 py-0.5 bg-amber-50 text-amber-700 rounded border border-amber-200 font-bold";
+      } else {
+        document.getElementById("quiz-mode-badge").textContent = "通常モード";
+        document.getElementById("quiz-mode-badge").className = "px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded border border-indigo-200 font-bold";
+
+        if (selectedQuestionCount === "ALL") {
+          activeQuizList = [...vocabularyData];
+        } else {
+          const count = parseInt(selectedQuestionCount, 10);
+          activeQuizList = shuffleArray(vocabularyData).slice(0, Math.min(count, vocabularyData.length));
+        }
+      }
+
+      document.getElementById("home-screen").classList.add("hidden");
+      document.getElementById("quiz-screen").classList.remove("hidden");
+      document.getElementById("summary-screen").classList.add("hidden");
+
+      showQuestion();
+    }
+
+    // 問題表示
+    function showQuestion() {
+      isAnswered = false;
+      const currentWord = activeQuizList[currentIndex];
+
+      document.getElementById("target-word").textContent = currentWord.word;
+      document.getElementById("word-pos").textContent = currentWord.pos;
+      document.getElementById("question-number").textContent = `Question ${currentIndex + 1}`;
+
+      const total = activeQuizList.length;
+      const progressPercent = Math.round((currentIndex / total) * 100);
+      document.getElementById("progress-bar").style.width = `${progressPercent}%`;
+      document.getElementById("progress-text").textContent = `進捗: ${currentIndex} / ${total}`;
+
+      document.getElementById("explanation-card").classList.add("hidden");
+      document.getElementById("next-btn").classList.add("hidden");
+      document.getElementById("next-btn").classList.remove("flex");
+
+      const optionsContainer = document.getElementById("options-container");
+      optionsContainer.innerHTML = "";
+
+      const options = [
+        { text: currentWord.meaning, isCorrect: true },
+        ...currentWord.distractors.map(d => ({ text: d, isCorrect: false }))
+      ];
+
+      shuffleArray(options).forEach((option, idx) => {
+        const btn = document.createElement("button");
+        btn.className = "option-btn w-full text-left p-4 rounded-xl border-2 border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/50 transition-all font-semibold text-slate-800 flex items-center justify-between group";
+        btn.innerHTML = `
+          <div class="flex items-center space-x-3">
+            <span class="w-7 h-7 rounded-lg bg-slate-100 group-hover:bg-indigo-600 group-hover:text-white flex items-center justify-center text-xs font-bold transition-colors">${idx + 1}</span>
+            <span class="text-sm sm:text-base">${option.text}</span>
+          </div>
+          <i class="fa-solid fa-circle-check text-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity"></i>
+        `;
+        btn.onclick = () => checkAnswer(option.isCorrect, btn);
+        optionsContainer.appendChild(btn);
+      });
+    }
+
+    // 解答確認
+    function checkAnswer(isCorrect, selectedBtn) {
       if (isAnswered) return;
       isAnswered = true;
 
-      const buttons = optionsContainerEl.querySelectorAll("button");
-      buttons.forEach(btn => {
+      const currentWord = activeQuizList[currentIndex];
+      const optionBtns = document.querySelectorAll(".option-btn");
+
+      optionBtns.forEach(btn => {
         btn.disabled = true;
-        btn.classList.remove("hover:border-indigo-500", "hover:bg-indigo-50/50");
+        btn.classList.remove("hover:border-indigo-400", "hover:bg-indigo-50/50");
       });
 
       if (isCorrect) {
         score++;
         selectedBtn.classList.add("border-emerald-500", "bg-emerald-50", "text-emerald-900");
-        selectedBtn.querySelector("span").classList.add("bg-emerald-600", "text-white");
-        
-        // 復習モードで正解した場合は復習リストから除外
-        if (wrongWordIds.includes(item.id)) {
-          wrongWordIds = wrongWordIds.filter(id => id !== item.id);
-          saveReviewList();
-        }
-
-        showExplanation(true, item);
+        showExplanation(true, currentWord);
+        removeFromReviewList(currentWord.id);
       } else {
         selectedBtn.classList.add("border-rose-500", "bg-rose-50", "text-rose-900");
-        selectedBtn.querySelector("span").classList.add("bg-rose-600", "text-white");
+        showExplanation(false, currentWord);
+        addToReviewList(currentWord.id);
 
-        // 正解ボタンをハイライト表示
-        buttons.forEach(btn => {
-          if (btn.textContent.includes(item.meaning)) {
-            btn.classList.add("border-emerald-500", "bg-emerald-50/70", "text-emerald-900");
+        optionBtns.forEach(btn => {
+          if (btn.textContent.includes(currentWord.meaning)) {
+            btn.classList.add("border-emerald-500", "bg-emerald-50");
           }
         });
-
-        // 復習リストに追加
-        if (!wrongWordIds.includes(item.id)) {
-          wrongWordIds.push(item.id);
-          saveReviewList();
-        }
-
-        showExplanation(false, item);
       }
 
-      nextBtnEl.classList.remove("hidden");
-      nextBtnEl.classList.add("flex");
+      const nextBtn = document.getElementById("next-btn");
+      nextBtn.classList.remove("hidden");
+      nextBtn.classList.add("flex");
     }
 
-    // 解説カードの表示
-    function showExplanation(isCorrect, item) {
-      explanationCardEl.classList.remove("hidden");
+    // 解説カード表示
+    function showExplanation(isCorrect, wordData) {
+      const card = document.getElementById("explanation-card");
+      const badge = document.getElementById("result-badge");
+      const title = document.getElementById("result-title");
+
+      card.classList.remove("hidden");
 
       if (isCorrect) {
-        explanationCardEl.className = "rounded-xl p-5 mb-6 border bg-emerald-50/60 border-emerald-200 text-emerald-900";
-        resultBadgeEl.className = "inline-flex items-center justify-center w-8 h-8 rounded-full bg-emerald-500 text-white font-bold text-base mr-3 shadow-sm";
-        resultBadgeEl.innerHTML = '<i class="fa-solid fa-check"></i>';
-        resultTitleEl.textContent = "正解！ Excellent!";
+        card.className = "rounded-xl p-5 mb-6 border bg-emerald-50/60 border-emerald-200 transition-all duration-300";
+        badge.className = "inline-flex items-center justify-center w-8 h-8 rounded-full font-bold text-lg mr-3 bg-emerald-500 text-white";
+        badge.innerHTML = '<i class="fa-solid fa-check"></i>';
+        title.className = "text-lg font-bold text-emerald-900";
+        title.textContent = "正解です！";
       } else {
-        explanationCardEl.className = "rounded-xl p-5 mb-6 border bg-rose-50/60 border-rose-200 text-rose-900";
-        resultBadgeEl.className = "inline-flex items-center justify-center w-8 h-8 rounded-full bg-rose-500 text-white font-bold text-base mr-3 shadow-sm";
-        resultBadgeEl.innerHTML = '<i class="fa-solid fa-xmark"></i>';
-        resultTitleEl.textContent = "不正解... 復習リストに追加しました";
+        card.className = "rounded-xl p-5 mb-6 border bg-rose-50/60 border-rose-200 transition-all duration-300";
+        badge.className = "inline-flex items-center justify-center w-8 h-8 rounded-full font-bold text-lg mr-3 bg-rose-500 text-white";
+        badge.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+        title.className = "text-lg font-bold text-rose-900";
+        title.textContent = "不正解です";
       }
 
-      correctMeaningEl.textContent = `${item.word} 【${item.pos}】 : ${item.meaning}`;
-      exampleEnEl.textContent = item.exampleEn;
-      exampleJaEl.textContent = item.exampleJa;
-      businessExplanationEl.textContent = item.explanation;
+      document.getElementById("correct-meaning").textContent = `${wordData.word} : ${wordData.meaning}`;
+      document.getElementById("example-en").textContent = wordData.exampleEn;
+      document.getElementById("example-ja").textContent = wordData.exampleJa;
+      document.getElementById("business-explanation").textContent = wordData.explanation;
     }
 
-    // 次の問題へ遷移または終了処理
     function nextQuestion() {
       currentIndex++;
-      if (currentIndex < currentQuizList.length) {
-        loadQuestion();
+      if (currentIndex < activeQuizList.length) {
+        showQuestion();
       } else {
         showSummary();
       }
     }
 
-    // クイズ終了画面を表示
     function showSummary() {
-      quizScreenEl.classList.add("hidden");
-      summaryScreenEl.classList.remove("hidden");
+      document.getElementById("quiz-screen").classList.add("hidden");
+      document.getElementById("summary-screen").classList.remove("hidden");
 
-      progressBarEl.style.width = "100%";
-      progressTextEl.textContent = `完了: ${currentQuizList.length} / ${currentQuizList.length} (100%)`;
+      const total = activeQuizList.length;
+      const accuracy = Math.round((score / total) * 100);
 
-      document.getElementById("final-score").textContent = `${score} / ${currentQuizList.length}`;
-      const accuracy = Math.round((score / currentQuizList.length) * 100);
+      document.getElementById("final-score").textContent = `${score} / ${total}`;
       document.getElementById("final-accuracy").textContent = `${accuracy}%`;
 
-      // 最高スコア更新
-      if (!isReviewMode && score > highScore) {
-        highScore = score;
-        localStorage.setItem("toeic_app_high_score", highScore);
-        highScoreValEl.textContent = highScore;
+      if (!isReviewMode) {
+        saveHighScore(score);
       }
 
-      // 復習ボタン・アラートの更新
-      const startReviewBtn = document.getElementById("start-review-btn");
-      const reviewBadgeCount = document.getElementById("review-badge-count");
-      const reviewSummaryAlert = document.getElementById("review-summary-alert");
-      const reviewCountMsg = document.getElementById("review-count-msg");
+      const reviewCount = getReviewList().length;
+      const reviewAlert = document.getElementById("review-summary-alert");
 
-      reviewBadgeCount.textContent = wrongWordIds.length;
-      if (wrongWordIds.length > 0) {
-        startReviewBtn.classList.remove("opacity-50", "pointer-events-none");
-        reviewSummaryAlert.classList.remove("hidden");
-        reviewCountMsg.textContent = `現在、間違えた単語が ${wrongWordIds.length} 個登録されています。`;
+      if (reviewCount > 0) {
+        reviewAlert.classList.remove("hidden");
+        document.getElementById("review-count-msg").textContent = `現在 ${reviewCount} 問の復習単語が保存されています。`;
       } else {
-        startReviewBtn.classList.add("opacity-50", "pointer-events-none");
-        reviewSummaryAlert.classList.add("hidden");
+        reviewAlert.classList.add("hidden");
       }
     }
 
-    // LocalStorageデータの保存とUI更新
-    function saveReviewList() {
-      localStorage.setItem("toeic_app_wrong_ids", JSON.stringify(wrongWordIds));
-      updateReviewCountUI();
+    // ローカルストレージ管理
+    function getReviewList() {
+      const saved = localStorage.getItem(STORAGE_KEY_REVIEW);
+      return saved ? JSON.parse(saved) : [];
     }
 
-    function updateReviewCountUI() {
-      navReviewCountEl.textContent = wrongWordIds.length;
+    function addToReviewList(id) {
+      const list = getReviewList();
+      if (!list.includes(id)) {
+        list.push(id);
+        localStorage.setItem(STORAGE_KEY_REVIEW, JSON.stringify(list));
+      }
     }
 
-    // データリセット処理
+    function removeFromReviewList(id) {
+      let list = getReviewList();
+      list = list.filter(item => item !== id);
+      localStorage.setItem(STORAGE_KEY_REVIEW, JSON.stringify(list));
+    }
+
+    function updateReviewCountDisplay() {
+      const count = getReviewList().length;
+      document.getElementById("home-review-count").textContent = count;
+    }
+
+    function loadHighScore() {
+      const saved = localStorage.getItem(STORAGE_KEY_SCORE) || 0;
+      document.getElementById("high-score-val").textContent = saved;
+    }
+
+    function saveHighScore(currentScore) {
+      const saved = parseInt(localStorage.getItem(STORAGE_KEY_SCORE) || "0", 10);
+      if (currentScore > saved) {
+        localStorage.setItem(STORAGE_KEY_SCORE, currentScore);
+        document.getElementById("high-score-val").textContent = currentScore;
+      }
+    }
+
     function resetData() {
-      if (confirm("最高スコアと復習リストの学習データをすべてリセットしますか？")) {
-        localStorage.removeItem("toeic_app_wrong_ids");
-        localStorage.removeItem("toeic_app_high_score");
-        wrongWordIds = [];
-        highScore = 0;
-        highScoreValEl.textContent = "0";
-        updateReviewCountUI();
-        alert("データをリセットしました。");
-        restartNormalQuiz();
+      if (confirm("最高スコアおよび復習リストの履歴をすべて消去しますか？")) {
+        localStorage.removeItem(STORAGE_KEY_REVIEW);
+        localStorage.removeItem(STORAGE_KEY_SCORE);
+        document.getElementById("high-score-val").textContent = 0;
+        updateReviewCountDisplay();
+        alert("履歴をリセットしました。");
       }
     }
   </script>
 </body>
 </html>
-```
-
