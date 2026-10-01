@@ -2,7 +2,7 @@
   "name": "NEW HORIZON 英単語タイピングアプリ",
   "short_name": "英単語アプリ",
   "description": "NEW HORIZON3の英単語を楽しく学べるタイピングアプリです",
-  "start_url": "./index_1.html",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
