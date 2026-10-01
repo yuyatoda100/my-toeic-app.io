@@ -1,13 +1,13 @@
 {
-  "name": "NEW HORIZON 英単語タイピングアプリ",
-  "short_name": "英単語アプリ",
-  "description": "NEW HORIZON3の英単語を楽しく学べるタイピングアプリです",
+  "name": "TOEIC単語学習 4択クイズアプリ",
+  "short_name": "TOEIC Quiz",
+  "description": "TOEIC頻出単語をビジネス例文で学習する4択クイズアプリ",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#ffffff",
-  "theme_color": "#4A90E2",
+  "theme_color": "#4f46e5",
   "categories": ["education", "productivity"],
   "icons": [
     {
@@ -21,14 +21,12 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
-    }
-  ],
-  "screenshots": [
+    },
     {
       "src": "icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "form_factor": "narrow"
+      "purpose": "maskable"
     }
   ]
 }
